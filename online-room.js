@@ -64,6 +64,14 @@ export async function updateRoomState(state) {
   requestRoomRefresh();
   return result;
 }
+export function stopRoomPolling() {
+  if (pollTimer) clearTimeout(pollTimer);
+  pollTimer = null;
+  pollCallback = null;
+  errorCallback = null;
+  pollInFlight = false;
+}
+
 export function clearRoom() {
   if (pollTimer) clearTimeout(pollTimer);
   pollTimer = null;
