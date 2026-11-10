@@ -8,7 +8,7 @@ let pollCallback = null;
 let errorCallback = null;
 let pollInFlight = false;
 let lastPollAt = 0;
-const POLL_INTERVAL_MS = 1200;
+const POLL_INTERVAL_MS = 900;
 
 export function isSupabaseConfigured() {
   return SUPABASE_URL.startsWith("https://") &&
