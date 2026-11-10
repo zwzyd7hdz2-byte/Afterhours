@@ -94,12 +94,17 @@ function showActiveRoom(){
     try{await navigator.clipboard.writeText(saved.code);roomMessage("Room code copied. Send it to your player.");}
     catch{roomMessage(`Your room code is ${saved.code}. Copy it manually.`);}
   };
-  $("enterOnlineGames").onclick=()=>{
+  $("enterOnlineGames").onclick=async()=>{
     mode="online";
     updateModeGames();
     $("modeLabel").textContent="ONLINE / TWO SCREENS";
     $("gameModeLabel").textContent="ONLINE / TWO SCREENS";
     showScreen("lobby");
+    try {
+      await publishSharedState({screen:"lobby",game:null,updated_at:new Date().toISOString()});
+    } catch(error) {
+      roomMessage(error.message||"Could not sync the lobby.",true);
+    }
   };
   $("leaveRoom").onclick=()=>{
     clearRoom();
@@ -113,6 +118,7 @@ function showActiveRoom(){
     const enter=$("enterOnlineGames");
     if(label) label.textContent=data.player_count===2?"Both players are here. Room ready.":"Waiting for the other player to join…";
     if(enter) enter.classList.toggle("is-hidden",data.player_count!==2);
+    syncOnlineNavigation(data);
     syncOnlineTruthDare(data);
     syncOnlineStory(data);
     syncOnlineRoulette(data);
@@ -140,8 +146,24 @@ $("joinRoom").addEventListener("click",async()=>{
 });
 $("roomCodeInput").addEventListener("input",e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"");});
 
-$("backToEntrance").addEventListener("click",()=>showScreen("entrance"));
-$("backToLobby").addEventListener("click",()=>showScreen("lobby"));
+$("backToEntrance").addEventListener("click",()=>{
+  if(mode==="online" && getSavedRoom()) {
+    showScreen("onlineRoom");
+    return;
+  }
+  showScreen("entrance");
+});
+$("backToLobby").addEventListener("click",async()=>{
+  if(mode==="online") {
+    try {
+      await publishSharedState({screen:"lobby",game:null,updated_at:new Date().toISOString()});
+    } catch(error) {
+      roomMessage(error.message||"Could not return both players to the lobby.",true);
+    }
+  }
+  currentGame="";
+  showScreen("lobby");
+});
 
 document.querySelectorAll("[data-game]").forEach(button=>{
   button.addEventListener("click",()=>{
@@ -151,7 +173,33 @@ document.querySelectorAll("[data-game]").forEach(button=>{
   });
 });
 
-function openGame(game){
+async function publishSharedState(patch){
+  const previous=latestRoomData?.room_state||{};
+  const next={...previous,...patch,updated_at:patch.updated_at||new Date().toISOString()};
+  await updateRoomState(next);
+  if(latestRoomData) latestRoomData={...latestRoomData,room_state:next};
+  return next;
+}
+
+function syncOnlineNavigation(data){
+  if(mode!=="online" || !data?.room_state) return;
+  const state=data.room_state;
+  if(state.screen==="lobby"){
+    if(currentGame!=="" || $("lobby").classList.contains("is-hidden")){
+      currentGame="";
+      showScreen("lobby");
+    }
+    return;
+  }
+  if(state.screen==="game" && state.game){
+    if(currentGame!==state.game || $("gameScreen").classList.contains("is-hidden")){
+      openGame(state.game,{broadcast:false,sharedState:state});
+    }
+  }
+}
+
+function openGame(game, options={}){
+  const {broadcast=true,sharedState=null}=options;
   if(mode==="online" && !getSavedRoom()){
     showScreen("onlineRoom");
     roomMessage("Create or join a room before starting an online game.",true);
@@ -165,11 +213,28 @@ function openGame(game){
   const names={truthdare:"TRUTH OR DARE",story:"SPICE STORIES",roulette:"POSITION ROULETTE",board:"BOARD GAMES"};
   $("gameTitle").textContent=names[game]||"AFTERHOURS";
   $("gameSubtitle").textContent=game==="truthdare"?"Choose a card. Let fate decide.":"Your night, your rules.";
+
+  if(mode==="online" && sharedState) latestRoomData={...latestRoomData,room_state:sharedState};
+  if(mode==="online" && broadcast){
+    const now=new Date().toISOString();
+    const initial={
+      truthdare:{screen:"game",game:"truthdare",view:"deck",category,updated_at:now},
+      story:{screen:"game",game:"story",lines:[],turn:1,ended:false,updated_at:now},
+      roulette:{screen:"game",game:"roulette",group:null,position:null,updated_at:now}
+    }[game];
+    if(initial) latestRoomData={...latestRoomData,room_state:initial};
+  }
+
   if(game==="truthdare") setupTruthDare();
   if(game==="story") setupStory();
   if(game==="roulette") setupRoulette();
   if(game==="board") setupBoard();
   showScreen("gameScreen");
+
+  if(mode==="online" && broadcast){
+    const initial=latestRoomData?.room_state;
+    if(initial?.game===game) publishSharedState(initial).catch(error=>roomMessage(error.message||"Could not sync the selected game.",true));
+  }
 }
 
 function setupCategory(){
@@ -178,7 +243,19 @@ function setupCategory(){
     const option=document.createElement("option");option.value=value;option.textContent=label;select.append(option);
   });
   select.value=category;
-  select.addEventListener("change",()=>{category=select.value;setupTruthDare();});
+  select.addEventListener("change",async()=>{
+    category=select.value;
+    if(mode==="online"){
+      latestRoomData={...latestRoomData,room_state:{...latestRoomData?.room_state,screen:"game",game:"truthdare",view:"deck",category,updated_at:new Date().toISOString()}};
+    }
+    lastSharedCardKey="";
+    setupTruthDare();
+    if(mode==="online"){
+      try{
+        await publishSharedState({screen:"game",game:"truthdare",view:"deck",category,updated_at:new Date().toISOString()});
+      }catch(error){roomMessage(error.message||"Could not sync the card category.",true);}
+    }
+  });
   $("gameControls").append(select);
 }
 function setupTruthDare(){
@@ -211,7 +288,7 @@ function renderTruthDareCard(card){
   $("backToDeck").addEventListener("click",async()=>{
     if(mode==="online"){
       try{
-        await updateRoomState({game:"truthdare",view:"deck",category,updated_at:new Date().toISOString()});
+        await publishSharedState({screen:"game",game:"truthdare",view:"deck",category,updated_at:new Date().toISOString()});
         lastSharedCardKey="";
       }catch(error){roomMessage(error.message||"Could not update the shared deck.",true);}
     }
@@ -222,10 +299,10 @@ async function drawTruthDare(){
   const isTruth=Math.random()<.5;
   const deck=isTruth?PROMPTS[category]:CHALLENGES[category];
   currentPrompt=randomItem(deck);
-  const card={game:"truthdare",view:"card",kind:isTruth?"TRUTH":"DARE",category,prompt:currentPrompt,updated_at:new Date().toISOString()};
+  const card={screen:"game",game:"truthdare",view:"card",kind:isTruth?"TRUTH":"DARE",category,prompt:currentPrompt,updated_at:new Date().toISOString()};
   if(mode==="online"){
     try{
-      await updateRoomState(card);
+      await publishSharedState(card);
       lastSharedCardKey="";
       renderTruthDareCard(card);
     }catch(error){
@@ -239,6 +316,11 @@ function syncOnlineTruthDare(data){
   if(mode!=="online" || currentGame!=="truthdare" || !data?.room_state) return;
   const state=data.room_state;
   if(state.game!=="truthdare") return;
+  if(state.category && state.category!==category){
+    category=state.category;
+    lastSharedCardKey="";
+    setupTruthDare();
+  }
   if(state.view==="card") renderTruthDareCard(state);
   else if(state.view==="deck" && $("gameTitle").textContent!=="TRUTH OR DARE"){
     lastSharedCardKey="";
@@ -277,7 +359,7 @@ function renderStoryShared(state){
   $("gameStage").innerHTML=`<div class="simple-panel" id="storySharedPanel"><span class="eyebrow">${ended?"STORY COMPLETE":`PLAYER ${turn}'S TURN`}</span><h3>${ended?"The story ends here.":"Continue the story…"}</h3><div id="storyOutput"></div>${ended?"":`<textarea id="storyInput" placeholder="${player===turn?"Write your next line…":"Waiting for your partner…"}" ${player===turn?"":"disabled"} maxlength="1000"></textarea>`}<div class="game-actions">${ended?'<button id="restartStory" type="button">START ANOTHER STORY</button>':`<button id="addStoryLine" type="button" ${player===turn?"":"disabled"}>ADD YOUR LINE</button><button id="tapOut" type="button">END STORY</button>`}</div></div>`;
   $("storyOutput").innerHTML=lines.map((line,i)=>`<p><small>PLAYER ${(i%2)+1}</small><br>${escapeHtml(String(line))}</p>`).join("");
   const send=async(next)=>{
-    try{await updateRoomState(next);lastStoryVersion="";renderStoryShared(next);}
+    try{await publishSharedState({...next,screen:"game",game:"story"});lastStoryVersion="";renderStoryShared(next);}
     catch(error){alert(error.message||"Could not save story. Please try again.");}
   };
   if(ended){$("restartStory").onclick=()=>send({game:"story",lines:[],turn:1,ended:false});}
@@ -306,9 +388,9 @@ function setupRoulette(){
     const chosen=$("positionCategory").value;
     const group=chosen==="random"?randomItem(options):chosen;
     const position=randomItem(POSITION_CATEGORIES[group]);
-    const next={game:"roulette",group,position,updated_at:new Date().toISOString()};
+    const next={screen:"game",game:"roulette",group,position,updated_at:new Date().toISOString()};
     if(mode==="online"){
-      try{await updateRoomState(next);}catch(error){alert(error.message||"Unable to share the result.");return;}
+      try{await publishSharedState(next);}catch(error){alert(error.message||"Unable to share the result.");return;}
     }
     renderRouletteShared(next);
   });
