@@ -208,3 +208,5 @@ button{font:inherit;color:inherit}
 .reference-button{display:inline-flex;align-items:center;justify-content:center;text-decoration:none!important;color:#f1d9dc!important;background:#4c1c2a;border:1px solid #98606b;padding:14px 18px;font:inherit;letter-spacing:.07em}
 .reference-button:hover{background:#64283b}
 .room-actions button:disabled{opacity:.5;cursor:wait}
+
+.game-nav-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.leave-room-button{border-color:rgba(193,138,139,.45);color:#d9a9a7}.leave-room-button:hover{border-color:#c18a8b;background:rgba(89,28,40,.35)}
