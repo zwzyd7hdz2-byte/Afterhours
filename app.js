@@ -1,5 +1,5 @@
 import { PROMPTS, CHALLENGES, POSITION_CATEGORIES, POSITION_REFERENCE_URL } from "./data.js";
-import { isSupabaseConfigured, createRoom, joinRoom, getSavedRoom, startRoomPolling, clearRoom, updateRoomState } from "./online-room.js";
+import { isSupabaseConfigured, createRoom, joinRoom, getSavedRoom, startRoomPolling, stopRoomPolling, clearRoom, updateRoomState } from "./online-room.js";
 
 const $ = (id) => document.getElementById(id);
 const screens = ["entrance","lobby","gameScreen","onlineRoom"];
@@ -52,11 +52,11 @@ document.querySelectorAll("[data-mode]").forEach(button=>{
     mode=button.dataset.mode;
     updateModeGames();
     if(mode==="online"){
+      stopRoomPolling();
       showScreen("onlineRoom");
       $("roomStatus").classList.add("is-hidden");
       $("modeLabel").textContent="ONLINE / TWO SCREENS";
-      const saved=getSavedRoom();
-      if(saved) showActiveRoom();
+      // Always show Create / Join first. A saved token must not auto-enter an old room.
     }else{
       $("modeLabel").textContent="TOGETHER / ONE SCREEN · TWO PLAYERS";
       showScreen("lobby");
@@ -165,6 +165,24 @@ $("backToLobby").addEventListener("click",async()=>{
   showScreen("lobby");
 });
 
+$("leaveRoomGame").addEventListener("click",async()=>{
+  if(mode!=="online" || !getSavedRoom()) return;
+  const button=$("leaveRoomGame");
+  button.disabled=true;
+  try{
+    await publishSharedState({screen:"lobby",game:null,player_left:getSavedRoom().player,updated_at:new Date().toISOString()});
+  }catch(error){
+    roomMessage(error.message||"Could not notify the other player.",true);
+  }
+  clearRoom();
+  latestRoomData=null;
+  currentGame="";
+  button.classList.add("is-hidden");
+  $("roomStatus").classList.add("is-hidden");
+  showScreen("onlineRoom");
+  button.disabled=false;
+});
+
 document.querySelectorAll("[data-game]").forEach(button=>{
   button.addEventListener("click",()=>{
     const game=button.dataset.game;
@@ -207,6 +225,7 @@ function openGame(game, options={}){
   }
   currentGame=game;
   $("gameModeLabel").textContent=mode==="together"?"TOGETHER / ONE SCREEN":"ONLINE / TWO SCREENS";
+  $("leaveRoomGame").classList.toggle("is-hidden",mode!=="online" || !getSavedRoom());
   $("gameControls").replaceChildren();
   $("gameActions").replaceChildren();
   $("gameStage").replaceChildren();
