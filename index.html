@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#100d0e">
+  <title>AfterHours — A private game for two</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main id="app" class="app">
+    <div class="backdrop" aria-hidden="true"></div>
+    <header class="topbar">
+      <span class="eyebrow">A PRIVATE PLAYGROUND / AFTER DARK</span>
+      <button id="soundToggle" class="sound-toggle" type="button" aria-pressed="false">♫ <span>SOUND OFF</span></button>
+    </header>
+
+    <section id="entrance" class="screen entrance-screen">
+      <div class="entrance-copy">
+        <p class="eyebrow">AN INVITATION FOR TWO</p>
+        <h1>AFTER<span>HOURS</span><i>.</i></h1>
+        <p class="tagline">Some nights are better left unplanned.</p>
+      </div>
+      <div class="mode-picker">
+        <button class="mode-card" data-mode="together" type="button">
+          <span class="mode-index">01 / SAME SCREEN</span>
+          <strong>PLAY TOGETHER</strong>
+          <span class="mode-description">One device. Two players. Board games included.</span>
+          <span class="mode-arrow">↗</span>
+        </button>
+        <button class="mode-card" data-mode="online" type="button">
+          <span class="mode-index">02 / TWO SCREENS</span>
+          <strong>PLAY ONLINE</strong>
+          <span class="mode-description">Two devices. One shared experience.</span>
+          <span class="mode-arrow">↗</span>
+        </button>
+      </div>
+      <p class="entrance-note">CHOOSE YOUR EXPERIENCE · PRIVATE PLAY FOR TWO</p>
+    </section>
+
+    <section id="onlineRoom" class="screen lobby-screen is-hidden">
+      <div class="screen-heading">
+        <button id="roomBack" class="text-button" type="button">← BACK</button>
+        <span class="eyebrow">ONLINE / TWO SCREENS</span>
+      </div>
+      <div class="lobby-title">
+        <p class="eyebrow">A PRIVATE SESSION FOR TWO</p>
+        <h2>MEET ME <i>HERE.</i></h2>
+        <p class="subline">Create a room or enter an invitation code.</p>
+      </div>
+      <div class="room-panel">
+        <div class="room-choice">
+          <span class="eyebrow">PLAYER ONE</span>
+          <h3>CREATE A ROOM</h3>
+          <p>Start a private room and invite someone in.</p>
+          <button id="createRoom" type="button">CREATE PRIVATE ROOM ↗</button>
+        </div>
+        <div class="room-divider"><span>OR</span></div>
+        <div class="room-choice">
+          <span class="eyebrow">PLAYER TWO</span>
+          <h3>JOIN A ROOM</h3>
+          <p>Already have a code? Enter it below.</p>
+          <input id="roomCodeInput" type="text" maxlength="6" placeholder="ENTER 6-CHARACTER CODE" autocomplete="off" spellcheck="false">
+          <button id="joinRoom" type="button">JOIN ROOM ↗</button>
+        </div>
+      </div>
+      <div id="roomStatus" class="room-status is-hidden" aria-live="polite"></div>
+    </section>
+
+    <section id="lobby" class="screen lobby-screen is-hidden">
+      <div class="screen-heading">
+        <button id="backToEntrance" class="text-button" type="button">← CHANGE MODE</button>
+        <span id="modeLabel" class="eyebrow">TOGETHER / PRIVATE SESSION</span>
+      </div>
+      <div class="lobby-title">
+        <p class="eyebrow">THE NIGHT IS YOURS</p>
+        <h2>CHOOSE YOUR <i>GAME.</i></h2>
+        <p class="subline">Pick a deck. Leave the rest to chance.</p>
+      </div>
+      <div class="game-shelf">
+        <button class="game-tile" data-game="truthdare" type="button">
+          <span class="tile-index">01 / THE DRAW</span><span class="tile-symbol">♢</span>
+          <span class="tile-copy"><strong>TRUTH OR DARE</strong><em>One draw. You never know which.</em></span><span class="tile-arrow">↗</span>
+        </button>
+        <button class="game-tile" data-game="story" type="button">
+          <span class="tile-index">02 / TWO IMAGINATIONS</span><span class="tile-symbol">…</span>
+          <span class="tile-copy"><strong>SPICE STORIES</strong><em>One story. Two voices.</em></span><span class="tile-arrow">↗</span>
+        </button>
+        <button class="game-tile" data-game="roulette" type="button">
+          <span class="tile-index">03 / CHANCE & FATE</span><span class="tile-symbol">◈</span>
+          <span class="tile-copy"><strong>POSITION ROULETTE</strong><em>Let chance decide.</em></span><span class="tile-arrow">↗</span>
+        </button>
+        <button class="game-tile board-tile" data-game="board" type="button">
+          <span class="tile-index">04 / SAME SCREEN ONLY</span><span class="tile-symbol">⚄</span>
+          <span class="tile-copy"><strong>BOARD GAMES</strong><em>Roll the dice. Make your move.</em></span><span class="tile-arrow">↗</span>
+        </button>
+      </div>
+    </section>
+
+    <section id="gameScreen" class="screen game-screen is-hidden">
+      <div class="screen-heading">
+        <button id="backToLobby" class="text-button" type="button">← ALL GAMES</button>
+        <span id="gameModeLabel" class="eyebrow"></span>
+      </div>
+      <div class="game-heading">
+        <p class="eyebrow">AFTERHOURS / THE DECK</p>
+        <h2 id="gameTitle">TRUTH OR DARE</h2>
+        <p id="gameSubtitle" class="subline">Choose a card. Let fate decide.</p>
+      </div>
+      <div id="gameControls" class="game-controls"></div>
+      <div id="gameStage" class="game-stage"></div>
+      <div id="gameActions" class="game-actions"></div>
+    </section>
+
+    <footer class="footer"><span>AFTERHOURS</span><span>NO RULES BUT YOUR OWN</span></footer>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
